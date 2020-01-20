@@ -1,5 +1,5 @@
 # debug-ansible-f5
-A simple F5 tasks to debug slowness of `bigip_virtual_server` module
+A simple F5 tasks to debug slowness of `bigip_virtual_server` module with Ansible 2.8 or Ansible 2.9.
 
 It contains 100 SSL certs and keys.
 
