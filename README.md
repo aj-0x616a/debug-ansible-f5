@@ -12,16 +12,16 @@ It should be run in the following steps:
 1. Update username and password (with Admin rights) in group_vars/all_devices/auth.yml
 2. Put a correct F5 LTM hostname in inventories/testing/hosts
 
-3. Run these playbooks
-
+3. Run these playbooks:
+```
 $ time ansible-playbook upload-certificates_and_keys.yml
 $ time ansible-playbook run-nodes-pools-vs.yml
-
+```
 
 
 -----------
 My Results:
-
+```
 $ time ansible-playbook upload-certificates_and_keys.yml
 
 My results:
@@ -40,3 +40,4 @@ $ time ansible-playbook run-nodes-pools-vs.yml --tags=vs
 real	14m0.379s
 user	2m36.049s
 sys	0m21.154s
+```
