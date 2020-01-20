@@ -1,0 +1,8 @@
+---
+ansible_network_os: f5
+
+f5_cli:
+  server: "{{ device_hostname | default(inventory_hostname) }}"
+  user: "{{ auth_user }}"
+  password: "{{ auth_pass }}"
+  validate_certs: false

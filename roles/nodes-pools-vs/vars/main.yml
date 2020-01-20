@@ -1,0 +1,41 @@
+---
+client_ssl_profile_prefix: "test_clientssl_"
+
+# used later to make a list of all profiles for Virtual Servers (inside the playbook)
+vs_sslprofiles:
+  - { "name": "tcp", "context": "all" }
+  - { "name": "http", "context": "all" }
+  - { "name": "httpcompression", "context": "all" }
+  - { "name": "test_SSL_SNI_default_profile", "context": "clientside" }
+
+ltm:
+
+  nodes:
+    - name: test-node1
+      ip: "10.10.10.111"
+    - name: test-node2
+      ip: "10.10.10.222"
+
+  pools:
+    - name: test-POOL-http-8080
+      description: "Customers service"
+      members:
+        - test-node1
+        - test-node2
+      port: 8080
+      monitor: http
+
+  virtuals:
+    - name: test-VS-HTTPS
+      description: "Customers service with lots of SSL certs"
+      destination: "172.168.30.30"
+      port: 443
+      persist: cookie
+      pool: test-POOL-http-8080
+      profiles: "{{ vs_sslprofiles }}"
+      irules:
+        - iRule1
+        - iRule2
+      snat: none
+
+filter: 'all'

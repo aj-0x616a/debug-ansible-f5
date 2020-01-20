@@ -1,0 +1,12 @@
+when RULE_INIT {
+    set static::irule2_debug 0
+}
+
+when HTTP_REQUEST priority 1000 {
+
+    if { $static::irule2_debug == 1 } {
+        log local0.info "Hit [HTTP::uri], changing to /irule2[HTTP::uri]"
+    }
+    HTTP::uri "/irule2[HTTP::uri]"
+    return
+}

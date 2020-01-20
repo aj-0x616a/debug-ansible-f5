@@ -1,0 +1,182 @@
+---
+### Client SSL BASE profiles ###
+- name: Create BASE client SSL profile
+  bigip_profile_client_ssl:
+    provider: "{{ f5_cli }}"
+    state: present
+    name: "test_SSL_base_profile"
+    cert_key_chain:
+      - cert: default.crt
+        key: default.key
+        chain: ca-bundle.crt
+    ciphers: "TLSv1_2"
+    parent: /Common/clientssl
+    client_auth_frequency: once
+    client_certificate: request
+  delegate_to: localhost
+  notify: Save F5 configuration
+  tags:
+    - ssl_profiles_base
+    - ssl_profiles
+
+### Client SSL profile with SNI default ###
+- name: Create SNI default client SSL profile
+  bigip_profile_client_ssl:
+    provider: "{{ f5_cli }}"
+    state: present
+    name: "test_SSL_SNI_default_profile"
+    parent: "test_SSL_base_profile"
+    cert_key_chain:
+      - cert: default.crt
+        key: default.key
+        chain: ca-bundle.crt
+    sni_default: yes
+  delegate_to: localhost
+  notify: Save F5 configuration
+  tags:
+    - ssl_profiles_sni
+    - ssl_profiles
+
+- name: Create a client SSL profile for many
+  bigip_profile_client_ssl:
+    provider: "{{ f5_cli }}"
+    state: present
+    name: "{{ client_ssl_profile_prefix }}{{ item.split('/')[-1].split('.crt')[0] }}"
+    parent: "test_SSL_base_profile"
+    cert_key_chain:
+      - cert: "{{ item.split('/')[-1].split('.crt')[0] }}"
+        key: "{{ item.split('/')[-1].split('.crt')[0] }}"
+        chain: ca-bundle.crt
+  delegate_to: localhost
+  notify: Save F5 configuration
+  when: filter == 'all' or filter in item.split('/')[-1].split('.crt')[0]
+  with_fileglob:
+    - "files/ssl_certs/*.crt"
+  tags:
+    - ssl_profiles
+    - ssl_others
+
+### Data Groups ###
+- name: Add data-group
+  bigip_data_group:
+    provider: "{{ f5_cli }}"
+    state: present
+    internal: yes
+    name: "SERVICES_IPS"
+    type: address
+    records:
+      - key: 1.1.1.1
+        value: Service1
+      - key: 2.2.2.2
+        value: Service2
+  delegate_to: localhost
+  notify: Save F5 configuration
+  tags:
+    - dg
+
+### Configure iRules ###
+- name: Add iRules
+  bigip_irule:
+    provider: "{{ f5_cli }}"
+    module: ltm
+    content: "{{ lookup('template', item) }}"
+    name: "{{ item.split('.')[0].split('/')[-1] }}"
+    state: present
+  delegate_to: localhost
+  notify: Save F5 configuration
+  with_fileglob:
+    - "files/irules/*.irule"
+  tags:
+    - irules
+
+- name: Add nodes
+  bigip_node:
+    provider: "{{ f5_cli }}"
+    state: present
+    partition: Common
+    name: "{{ node.name }}"
+    host: "{{ node.ip }}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  loop:
+    "{{ ltm.nodes }}"
+  loop_control:
+    loop_var: node
+    label: " Create node {{ node.name }} "
+  tags:
+    - nodes
+
+- name: Add pools
+  bigip_pool:
+    provider: "{{ f5_cli }}"
+    state: present
+    description: "{{ pool.description | default('') }}"
+    name: "{{ pool.name }}"
+    partition: Common
+    lb_method: round-robin
+    monitor_type: single
+    monitors:
+      - "{{ pool.monitor }}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  loop: "{{ ltm.pools }}"
+  loop_control:
+    loop_var: pool
+    label: " Create pool {{ pool.name }} "
+  tags:
+    - pools
+
+- name: Add pool member to pools
+  bigip_pool_member:
+    provider: "{{ f5_cli }}"
+    state: present
+    partition: Common
+    pool: "{{ pool.0.name }}"
+    name: "{{ pool.1 }}"
+    address: "just need to pass any value in this field"
+    port: "{{ pool.0.port }}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  loop: "{{ ltm.pools | subelements('members') }}"
+  loop_control:
+    loop_var: pool
+    label: " Add pool member {{ pool.1 }} to {{ pool.0.name }} "
+  tags:
+    - members
+
+# Need this to compile a dict of SSL profiles for VS
+- name: Prepare a list of SSL profiles to configure on VS
+  set_fact:
+    vs_sslprofiles: "{{ vs_sslprofiles + [ { 'name': client_ssl_profile_prefix + item.split('/')[-1].split('.crt')[0], 'context': 'client-side' } ] }}"
+  with_fileglob:
+    - "files/ssl_certs/*.crt"
+  tags:
+    - vs
+
+### Virtual Servers ###
+- name: Add virtual servers
+  bigip_virtual_server:
+    provider: "{{ f5_cli }}"
+    state: "{{ vs.state | default('present') }}"
+    partition: Common
+    name: "{{ vs.name }}"
+    type: "{{ vs.type | default('standard') }}"
+    ip_protocol: "{{ vs.ip_protocol | default('tcp')}}"
+    destination: "{{ vs.destination }}"
+    port: "{{ vs.port }}"
+    pool: "{{ vs.pool | default ('') }}"
+    description: "{{ vs.description | default('') }}"
+    profiles: "{{ vs.profiles }}"
+    default_persistence_profile: "{{ vs.persist | default('') }}"
+    irules: "{{ vs.irules | default(['']) }}"
+    snat: "{{ vs.snat }}"
+    enabled_vlans: "{{ vs.enabled_vlans | default('all')}}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  loop: "{{ ltm.virtuals }}"
+  loop_control:
+    loop_var: vs
+    label: " Create virtual server {{ vs.name }} "
+  when: vs.irules is defined and vs.policies is not defined
+  tags:
+    - vs

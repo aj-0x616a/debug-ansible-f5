@@ -1,0 +1,10 @@
+[all:vars]
+ansible_python_interpreter="/usr/bin/env python"
+
+
+[all_devices]
+f5ltm.local
+
+[all_devices:vars]
+os_type = 'f5'
+do_pause=True

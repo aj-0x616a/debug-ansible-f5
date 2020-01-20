@@ -1,0 +1,30 @@
+---
+- name: Import SSL Certificates
+  bigip_ssl_certificate:
+    provider: "{{ f5_cli }}"
+    name: "{{ item.split('/')[-1].split('.crt')[0] }}"
+    state: "present"
+    content: "{{ lookup('file', item) }}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  with_fileglob:
+    - "files/ssl_certs/*.crt"
+  when: filter == 'all' or filter in item.split('/')[-1].split('.crt')[0]
+  tags:
+    - certs
+    - files
+
+- name: Import SSL Keys
+  bigip_ssl_key:
+    provider: "{{ f5_cli }}"
+    name: "{{ item.split('/')[-1].split('.key')[0] }}"
+    state: "present"
+    content: "{{ lookup('file', item) }}"
+  delegate_to: localhost
+  notify: Save F5 configuration
+  with_fileglob:
+    - "files/ssl_keys/*.key"
+  when: filter == 'all' or filter in item.split('/')[-1].split('.key')[0]
+  tags:
+    - keys
+    - files

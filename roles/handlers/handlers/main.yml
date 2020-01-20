@@ -1,0 +1,7 @@
+---
+- name: F5 saving configuration
+  bigip_config:
+    provider: "{{ f5_cli }}"
+    save: yes
+  delegate_to: localhost
+  listen: "Save F5 configuration"
